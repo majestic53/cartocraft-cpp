@@ -1,0 +1,58 @@
+Cartocraft is a top-down orthogonal "Anvil" Minecraft map renderer meant
+to demonstrate the uses of libanvil
+
+Thank you
+-------
+A big thank you to Lode Vandevenne <> for his png lib!
+
+Building
+-------
+
+Instructions for compiling Cartocraft from source code
+
+Requirements (tested on):
+	- g++ 4.4.3 or newer
+	- make 3.8 or newer
+	- boost regex 1.42 or newer
+	- boost filesystem 1.42 or newer
+	- zlib 1.2.3.3 or newer
+
+For Debian:
+	- sudo apt-get install build-essential make zlib-dev libboost1.42-all-dev
+
+Building (produces a static lib):
+	- make
+
+Usage
+-------
+
+Cartocraft has just a few options: 
+
+	-p [DIRECTORY] will set the desired input directory
+		- Defaults to the current working directory
+	-r [INTEGER] will set the render height (0 - 256)
+		- Defaults to 256
+	-o [FILE PATH] will set the output file path
+		- Defaults to ./out.png
+	
+Here's an example:
+
+	./cartocraft -p ~/.minecraft/saves/world1/region -o render.png
+
+	(This call will instruct cartocraft to read in region files from the directory
+	"~/.minecraft/saves/world1/region" and output a png with the name "render".)
+
+License
+-------
+
+Copyright(C) 2012 David Jolly <majestic53@gmail.com>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
