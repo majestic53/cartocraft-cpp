@@ -3,7 +3,7 @@ to demonstrate the uses of libanvil
 
 Thank you
 -------
-A big thank you to Lode Vandevenne <> for his png lib!
+A big thank you to Lode Vandevenne for his png library, lodepng!
 
 Building
 -------
@@ -20,7 +20,7 @@ Requirements (tested on):
 For Debian:
 	- sudo apt-get install build-essential make zlib-dev libboost1.42-all-dev
 
-Building (produces a static lib):
+Building:
 	- make
 
 Usage
