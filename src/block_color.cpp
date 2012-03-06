@@ -53,3 +53,5 @@ bool block_color::is_transparent(unsigned int id) {
 			|| id == GLASS
 			|| id == ICE);
 }
+
+// TODO: SWITCH ICE AND WATER COLORS && CHANGE ICE TO A MORE WHITE COLOR

@@ -22,8 +22,8 @@
 #include <iostream>
 #include "block_color.hpp"
 #include "carto.hpp"
-#include "../lib/headers/region_dim.hpp"
-#include "../lib/headers/region_file.hpp"
+#include "region_dim.hpp"
+#include "region_file.hpp"
 
 /*
  * Cartocraft info
@@ -36,7 +36,7 @@ const std::string carto::WARRANTY("This is free software. There is NO warranty."
 /*
  * Cartocraft render constants
  */
-const int carto::RADII[RADII_COUNT] = { 1, 1, 1, 1, 1, 2, 4, 8 };
+const int carto::RADII[RADII_COUNT] = { 1, 1, 1, 1, 1, 2, 4, 8, 16 };
 
 /*
  * Cartocraft defaults
@@ -167,8 +167,10 @@ int carto::render_map(const std::string &reg_dir, unsigned int ren_height) {
 	img = image_buffer(BLOCK_WIDTH_PER_REGION * (abs(x_min) + x_max) + BLOCK_WIDTH_PER_REGION,
 				BLOCK_WIDTH_PER_REGION * (abs(z_min) + z_max) + BLOCK_WIDTH_PER_REGION);
 	img.fill(block_color::BLACK);
-	center_x = img.get_width() / 2;
-	center_z = img.get_height() / 2;
+	center_x = img.get_width() / 2 - (BLOCK_WIDTH_PER_REGION / 2);
+	center_z = img.get_height() / 2 - (BLOCK_WIDTH_PER_REGION / 2);
+	std::cout << "Rendering map: size: (" << img.get_width() << ", " << img.get_height() << "), center: (" << center_x << ", " << center_z << ")..." << std::endl;
+
 	region_count = (img.get_width() / BLOCK_WIDTH_PER_REGION) * (img.get_height() / BLOCK_WIDTH_PER_REGION);
 	region_filled = new bool[region_count];
 	heightmap = new unsigned int[img.get_width() * img.get_height()];
@@ -198,13 +200,15 @@ int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
 	region_file_reader reader;
 	std::vector<int32_t> blocks, heights;
 	unsigned int block_height, block_id, pos;
-	int reg_x, reg_z, ch_x, ch_z;
+	int reg_x, reg_z, ch_x, ch_z, b_x, b_z;
 
 	// open region file and collect data
 	try {
 		reader = region_file_reader(reg_file);
 		std::cout << "Processing region: " << reader.to_string() << "..." << std::endl;
-		reg_x = center_x + (reader.get_x_coord() * BLOCK_WIDTH_PER_REGION);
+
+		// calculate region offsets
+		reg_x = center_x + (reader.get_x_coord() * BLOCK_WIDTH_PER_REGION) + BLOCK_WIDTH_PER_REGION;
 		reg_z = center_z + (reader.get_z_coord() * BLOCK_WIDTH_PER_REGION);
 
 		// set filled region to true
@@ -212,7 +216,7 @@ int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
 			region_filled[((reg_z / BLOCK_WIDTH_PER_REGION) * (img.get_width() / BLOCK_WIDTH_PER_REGION)) + (reg_x / BLOCK_WIDTH_PER_REGION)] = true;
 
 		// render region chunk-by-chunk
-		for(unsigned int chunk_z = 0; chunk_z < region_dim::REGION_X; ++chunk_z)
+		for(unsigned int chunk_z = 0; chunk_z < region_dim::REGION_Z; ++chunk_z)
 			for(unsigned int chunk_x = 0; chunk_x < region_dim::REGION_X; ++chunk_x) {
 
 				// check if chunk exists
@@ -226,9 +230,13 @@ int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
 				// skip over empty chunks
 				if(blocks.empty()
 						|| heights.empty()) {
-					std::cerr << "Warning: Chunk missing data encountered at (" << chunk_x << ", " << chunk_z << "). Skipping." << std::endl;
+					std::cerr << "Warning: Chunk missing data at (" << chunk_x << ", " << chunk_z << "). Skipping." << std::endl;
 					continue;
 				}
+
+				// calculate chunk offsets
+				ch_x = reg_x + (chunk_x * region_dim::CHUNK_X);
+				ch_z = reg_z + (chunk_z * region_dim::CHUNK_Z);
 
 				// process each chunk block-by-block
 				for(unsigned int block_z = 0; block_z < region_dim::CHUNK_Z; ++block_z)
@@ -257,17 +265,19 @@ int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
 
 						// skip unknown block ids
 						if(block_id > block_color::MAX_BLOCK) {
-							std::cerr << "Warning: Unknown block id encountered (" << block_id << "). Skipping." << std::endl;
+							std::cerr << "Warning: Unknown block id (" << block_id << "). Skipping." << std::endl;
 							continue;
 						}
 
+						// calculate block offsets
+						b_x = ch_x + block_x;
+						b_z = ch_z + block_z;
+
 						// Use block_id to set image buffer color at a x, z coord
-						ch_x = reg_x + (chunk_x * region_dim::CHUNK_X) + block_x;
-						ch_z = reg_z + (chunk_z * region_dim::CHUNK_Z) + block_z;
-						img.set(ch_x, ch_z, block_color::COLOR[block_id]);
+						img.set(b_x, b_z, block_color::COLOR[block_id]);
 
 						// add height to global heightmap (used by ssoa later)
-						heightmap[(ch_z * img.get_width()) + ch_x] = block_height;
+						heightmap[(b_z * img.get_width()) + b_x] = block_height;
 					}
 			}
 
@@ -283,13 +293,18 @@ int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
  * Render screen-space ambient occlusion (SSAO) at a given region
  */
 void carto::render_region_occlusion(unsigned int reg_x, unsigned int reg_z) {
+	int br_x, br_z;
 	float average, value = 0;
 	unsigned int off_x = reg_x * BLOCK_WIDTH_PER_REGION, off_z = reg_z * BLOCK_WIDTH_PER_REGION, samples;
 	std::cout << "Rendering occlusion: (" << off_x << ", " << off_z << ")..." << std::endl;
 
 	// iterate through each block and calculate occlusion value
 	for(int z = 0; z < (int) BLOCK_WIDTH_PER_REGION; ++z)
-		for(int x = 0; x < (int) BLOCK_WIDTH_PER_REGION; ++x)
+		for(int x = 0; x < (int) BLOCK_WIDTH_PER_REGION; ++x) {
+
+			// skip all blocks of height zero
+			if(!heightmap[((off_z + z) * img.get_width()) + (off_x + x)])
+				continue;
 
 			// iterate through the various sampling radii
 			for(unsigned int r = 0; r < RADII_COUNT; ++r) {
@@ -299,12 +314,14 @@ void carto::render_region_occlusion(unsigned int reg_x, unsigned int reg_z) {
 				// iterate through surrounding block heights
 				for(int i = -RADII[r]; i <= RADII[r]; ++i)
 					for(int j = -RADII[r]; j <= RADII[r]; ++j) {
+						br_x = off_x + x + i;
+						br_z = off_z + z + j;
 						if((!i && !j)
-								|| (off_x + x + i) < 0 || (off_x + x + i) >= img.get_width()
-								|| (off_z + z + j) < 0 || (off_z + z + j) >= img.get_height()
-								|| (heightmap[((off_z + z + j) * img.get_width()) + (off_x + x + i)] - heightmap[((off_z + z) * img.get_width()) + (off_x + x)] < 0))
+								|| br_x < 0 || (unsigned int) br_x >= img.get_width()
+								|| br_z < 0 || (unsigned int) br_z >= img.get_height()
+								|| (heightmap[(br_z * img.get_width()) + br_x] - heightmap[((off_z + z) * img.get_width()) + (off_x + x)] < 0))
 							continue;
-						average += heightmap[((off_z + z + j) * img.get_width()) + (off_x + x + i)];
+						average += heightmap[(br_z * img.get_width()) + br_x];
 						samples++;
 					}
 
@@ -320,6 +337,7 @@ void carto::render_region_occlusion(unsigned int reg_x, unsigned int reg_z) {
 				value = fabs(((region_dim::CHUNK_Y - 1) + value) / (float) (region_dim::CHUNK_Y - 1));
 				apply_occlusion(off_x + x, off_z + z, value);
 			}
+		}
 }
 
 int main(int argc, char *argv[]) {

@@ -23,8 +23,8 @@
 #include <string>
 #include <vector>
 #include "image_buffer.hpp"
-#include "../lib/headers/region_file_exc.hpp"
-#include "../lib/headers/region_file_reader.hpp"
+#include "region_file_exc.hpp"
+#include "region_file_reader.hpp"
 
 class carto {
 private:
@@ -85,7 +85,7 @@ public:
 	 * Cartocraft render constants
 	 */
 	static const unsigned int BLOCK_WIDTH_PER_REGION = 512;
-	static const unsigned int RADII_COUNT = 8;
+	static const unsigned int RADII_COUNT = 9;
 	static const int RADII[RADII_COUNT];
 
 	/*
