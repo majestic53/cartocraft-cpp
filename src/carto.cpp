@@ -22,8 +22,8 @@
 #include <iostream>
 #include "block_color.hpp"
 #include "carto.hpp"
-#include "region_dim.hpp"
-#include "region_file.hpp"
+#include "../lib/headers/region_dim.hpp"
+#include "../lib/headers/region_file.hpp"
 
 /*
  * Cartocraft info
