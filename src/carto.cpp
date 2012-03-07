@@ -22,8 +22,8 @@
 #include <iostream>
 #include "block_color.hpp"
 #include "carto.hpp"
-#include "../lib/headers/region_dim.hpp"
-#include "../lib/headers/region_file.hpp"
+#include "region_dim.hpp"
+#include "region_file.hpp"
 
 /*
  * Cartocraft info
@@ -52,8 +52,8 @@ const std::string carto::FLAG[carto::FLAG_COUNT] = { "-p", "-r", "-o", "-h", "-v
  * Cartocraft constructor
  */
 carto::carto(void) {
-	center_x = 0;
-	center_z = 0;
+	offset_x = 0;
+	offset_z = 0;
 	region_count = 0;
 	region_filled = NULL;
 	heightmap = NULL;
@@ -70,7 +70,7 @@ carto::~carto(void) {
 /*
  * Apply occlusion to a given pixel at x, z coord
  */
-bool carto::apply_occlusion(unsigned int px_x, unsigned int px_z, float amount) {
+bool carto::apply_scale(unsigned int px_x, unsigned int px_z, float amount) {
 	unsigned int col;
 	unsigned char n_col[image_buffer::CHANNELS];
 	if(amount == 0)
@@ -122,7 +122,7 @@ int carto::is_flag(const std::string &arg) {
 /*
  * Render a series of regions and output image at specified path
  */
-int carto::render_map(const std::string &reg_dir, unsigned int ren_height) {
+int carto::render_map(const std::string &reg_dir, unsigned int ren_height, bool ren_occlusion) {
 	std::string file;
 	std::vector<std::string> reg_files;
 	std::vector<std::string>::iterator reg_file;
@@ -167,10 +167,11 @@ int carto::render_map(const std::string &reg_dir, unsigned int ren_height) {
 	img = image_buffer(BLOCK_WIDTH_PER_REGION * (abs(x_min) + x_max) + BLOCK_WIDTH_PER_REGION,
 				BLOCK_WIDTH_PER_REGION * (abs(z_min) + z_max) + BLOCK_WIDTH_PER_REGION);
 	img.fill(block_color::BLACK);
-	center_x = img.get_width() / 2 - (BLOCK_WIDTH_PER_REGION / 2);
-	center_z = img.get_height() / 2 - (BLOCK_WIDTH_PER_REGION / 2);
-	std::cout << "Rendering map: size: (" << img.get_width() << ", " << img.get_height() << "), center: (" << center_x << ", " << center_z << ")..." << std::endl;
+	std::cout << "Rendering map: size: (" << img.get_width() << ", " << img.get_height() << ")..." << std::endl;
 
+	// set offset and regions filled
+	offset_x = abs(x_min);
+	offset_z = abs(z_min);
 	region_count = (img.get_width() / BLOCK_WIDTH_PER_REGION) * (img.get_height() / BLOCK_WIDTH_PER_REGION);
 	region_filled = new bool[region_count];
 	heightmap = new unsigned int[img.get_width() * img.get_height()];
@@ -185,11 +186,13 @@ int carto::render_map(const std::string &reg_dir, unsigned int ren_height) {
 		if((res = render_region(*reg_file, ren_height)) != SUCCESS)
 			return res;
 
-	// reader occlusion
-	for(int z = 0; z < (abs(z_min) + z_max) + 1; ++z)
-		for(int x = 0; x < (abs(x_min) + x_max) + 1; ++x)
-			if(is_filled(x, z))
-				render_region_occlusion(x, z);
+	// render occlusion (by region)
+	if(ren_occlusion)
+		for(int z = 0; z < (abs(z_min) + z_max) + 1; ++z)
+			for(int x = 0; x < (abs(x_min) + x_max) + 1; ++x)
+				if(is_filled(x, z))
+					render_region_occlusion(x * BLOCK_WIDTH_PER_REGION, z * BLOCK_WIDTH_PER_REGION);
+
 	return SUCCESS;
 }
 
@@ -208,12 +211,12 @@ int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
 		std::cout << "Processing region: " << reader.to_string() << "..." << std::endl;
 
 		// calculate region offsets
-		reg_x = center_x + (reader.get_x_coord() * BLOCK_WIDTH_PER_REGION) + BLOCK_WIDTH_PER_REGION;
-		reg_z = center_z + (reader.get_z_coord() * BLOCK_WIDTH_PER_REGION);
+		reg_x = ((abs(reader.get_x_coord() + offset_x)) * BLOCK_WIDTH_PER_REGION);
+		reg_z = ((abs(reader.get_z_coord() + offset_z)) * BLOCK_WIDTH_PER_REGION);
 
 		// set filled region to true
 		if(!is_filled(reg_x / BLOCK_WIDTH_PER_REGION, reg_z / BLOCK_WIDTH_PER_REGION))
-			region_filled[((reg_z / BLOCK_WIDTH_PER_REGION) * (img.get_width() / BLOCK_WIDTH_PER_REGION)) + (reg_x / BLOCK_WIDTH_PER_REGION)] = true;
+			region_filled[((reg_z / BLOCK_WIDTH_PER_REGION) * (img.get_width() / BLOCK_WIDTH_PER_REGION) + (reg_x / BLOCK_WIDTH_PER_REGION))] = true;
 
 		// render region chunk-by-chunk
 		for(unsigned int chunk_z = 0; chunk_z < region_dim::REGION_Z; ++chunk_z)
@@ -292,10 +295,10 @@ int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
 /*
  * Render screen-space ambient occlusion (SSAO) at a given region
  */
-void carto::render_region_occlusion(unsigned int reg_x, unsigned int reg_z) {
+void carto::render_region_occlusion(unsigned int off_x, unsigned int off_z) {
 	int br_x, br_z;
+	unsigned int samples;
 	float average, value = 0;
-	unsigned int off_x = reg_x * BLOCK_WIDTH_PER_REGION, off_z = reg_z * BLOCK_WIDTH_PER_REGION, samples;
 	std::cout << "Rendering occlusion: (" << off_x << ", " << off_z << ")..." << std::endl;
 
 	// iterate through each block and calculate occlusion value
@@ -335,7 +338,7 @@ void carto::render_region_occlusion(unsigned int reg_x, unsigned int reg_z) {
 
 				// apply occlusion value to block
 				value = fabs(((region_dim::CHUNK_Y - 1) + value) / (float) (region_dim::CHUNK_Y - 1));
-				apply_occlusion(off_x + x, off_z + z, value);
+				apply_scale(off_x + x, off_z + z, value);
 			}
 		}
 }
@@ -406,7 +409,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	// pass in user inputs to render
-	if((res = map.render_map(reg_dir, height)))
+	if((res = map.render_map(reg_dir, height, true)))
 		return res;
 
 	std::cout << "Writing to file: " << out << "..." << std::endl;

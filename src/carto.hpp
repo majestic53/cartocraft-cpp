@@ -23,8 +23,8 @@
 #include <string>
 #include <vector>
 #include "image_buffer.hpp"
-#include "../lib/headers/region_file_exc.hpp"
-#include "../lib/headers/region_file_reader.hpp"
+#include "region_file_exc.hpp"
+#include "region_file_reader.hpp"
 
 class carto {
 private:
@@ -42,12 +42,12 @@ private:
 	/*
 	 * Image buffer width, height, region count & heightmap
 	 */
-	unsigned int center_x, center_z, region_count, *heightmap;
+	unsigned int offset_x, offset_z, region_count, *heightmap;
 
 	/*
 	 * Apply occlusion to a given pixel at x, z coord
 	 */
-	bool apply_occlusion(unsigned int px_x, unsigned int px_z, float amount);
+	bool apply_scale(unsigned int px_x, unsigned int px_z, float amount);
 
 	/*
 	 * Render a region file
@@ -57,7 +57,7 @@ private:
 	/*
 	 * Render screen-space ambient occlusion (SSAO) at a given region
 	 */
-	void render_region_occlusion(unsigned int reg_x, unsigned int reg_z);
+	void render_region_occlusion(unsigned int off_x, unsigned int off_z);
 
 public:
 
@@ -112,16 +112,6 @@ public:
 	virtual ~carto(void);
 
 	/*
-	 * Returns a maps center x coord
-	 */
-	unsigned int get_center_x(void) { return center_x; }
-
-	/*
-	 * Returns a maps center z coord
-	 */
-	unsigned int get_center_z(void) { return center_z; }
-
-	/*
 	 * Returns a maps height
 	 */
 	unsigned int get_height(void) { return img.get_height(); }
@@ -149,7 +139,7 @@ public:
 	/*
 	 * Render a series of regions and output image at specified path
 	 */
-	int render_map(const std::string &reg_dir, unsigned int ren_height);
+	int render_map(const std::string &reg_dir, unsigned int ren_height, bool ren_occlusion);
 
 	/*
 	 * Write rendered regions to file as a png
