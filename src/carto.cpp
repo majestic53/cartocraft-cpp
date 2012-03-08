@@ -221,6 +221,7 @@ int carto::render_map(const std::string &reg_dir, unsigned int ren_height, bool 
  * Render a region file
  */
 int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
+	bool below_ground;
 	region_file_reader reader;
 	std::vector<int8_t> biomes;
 	std::vector<int32_t> blocks, heights;
@@ -269,8 +270,11 @@ int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
 				for(unsigned int block_z = 0; block_z < region_dim::CHUNK_Z; ++block_z)
 					for(unsigned int block_x = 0; block_x < region_dim::CHUNK_X; ++block_x) {
 						block_height = heights.at(block_z * region_dim::CHUNK_Z + block_x);
-						if((unsigned int) block_height > ren_height)
+						if((unsigned int) block_height > ren_height) {
 							block_height = ren_height;
+							below_ground = true;
+						} else
+							below_ground = false;
 						pos = (block_height * region_dim::SECTION_Y + block_z) * region_dim::SECTION_Z + block_x;
 						if(pos >= blocks.size()) {
 							while(pos >= blocks.size())
@@ -310,7 +314,8 @@ int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
 
 						// scale colors based off biome type
 						blend_color = biome_color::BLEND_COLOR[biomes.at((block_z * region_dim::CHUNK_Z) + block_x)];
-						if(blend_color)
+						if(blend_color
+								&& !below_ground)
 							apply_alpha_blend(b_x, b_z, blend_color);
 					}
 			}
