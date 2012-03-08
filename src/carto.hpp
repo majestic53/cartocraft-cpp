@@ -23,8 +23,8 @@
 #include <string>
 #include <vector>
 #include "image_buffer.hpp"
-#include "../lib/headers/region_file_exc.hpp"
-#include "../lib/headers/region_file_reader.hpp"
+#include "region_file_exc.hpp"
+#include "region_file_reader.hpp"
 
 class carto {
 private:
@@ -32,7 +32,7 @@ private:
 	/*
 	 * Image buffer (stored with byte-order: RGBA)
 	 */
-	image_buffer img;
+	image_buffer terrain;
 
 	/*
 	 * Image buffer region filled
@@ -45,7 +45,7 @@ private:
 	unsigned int offset_x, offset_z, region_count, *heightmap;
 
 	/*
-	 * Apply occlusion to a given pixel at x, z coord
+	 * Scale a color at a given pixel at x, z coord
 	 */
 	bool apply_scale(unsigned int px_x, unsigned int px_z, float amount);
 
@@ -84,13 +84,13 @@ public:
 	/*
 	 * Cartocraft render constants
 	 */
-	static const unsigned int BLOCK_WIDTH_PER_REGION = 512;
-	static const unsigned int RADII_COUNT = 9;
-	static const int RADII[RADII_COUNT];
+	static const unsigned int SAMPLE_RADII_COUNT = 9;
+	static const int SAMPLE_RADII[SAMPLE_RADII_COUNT];
 
 	/*
 	 * Cartocraft defaults
 	 */
+	static const unsigned int BLOCK_WIDTH_PER_REGION = 512;
 	static const unsigned int DEF_HEIGHT = 256;
 	static const std::string DEF_FILE_DIR, DEF_OUT_PATH;
 
@@ -114,17 +114,17 @@ public:
 	/*
 	 * Returns a maps height
 	 */
-	unsigned int get_height(void) { return img.get_height(); }
+	unsigned int get_height(void) { return terrain.get_height(); }
 
 	/*
 	 * Returns a maps raw pixel buffer, (channel order: RGBA)
 	 */
-	std::vector<unsigned char> &get_pixel_buffer(void) { return img.get_raw(); }
+	std::vector<unsigned char> &get_pixel_buffer(void) { return terrain.get_raw(); }
 
 	/*
 	 * Returns a maps width
 	 */
-	unsigned int get_width(void) { return img.get_width(); }
+	unsigned int get_width(void) { return terrain.get_width(); }
 
 	/*
 	 * Returns true if a region in the image buffer is filled
@@ -144,7 +144,7 @@ public:
 	/*
 	 * Write rendered regions to file as a png
 	 */
-	void write(const std::string &path) { img.write(path); }
+	void write(const std::string &path) { terrain.write(path); }
 };
 
 #endif

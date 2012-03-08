@@ -20,15 +20,36 @@
 #ifndef BLOCK_COLOR_HPP_
 #define BLOCK_COLOR_HPP_
 
+#include <set>
+
 class block_color {
 public:
 
 	/*
-	 * Transparent block type
+	 * Common block types
 	 */
-	enum TRANSPARENT { AIR = 0, WATER_1 = 8, WATER_2 = 9, LAVA_1 = 10, LAVA_2 = 11, GLASS = 20, ICE = 79, };
+	enum BLOCK { AIR = 0, WATER_1 = 8, WATER_2 = 9, LAVA_1 = 10, LAVA_2 = 11, GLASS = 20, ICE = 79,
+				TORCH = 50, FIRE = 51, RED_STONE_TORCH = 76, GLOW_STONE = 89, JACK_O_LANTERN = 91,
+				RED_STONE_LAMP = 124, };
 
-	static const unsigned int BLACK = 0x000000ff;
+	/*
+	 * Transparent block types
+	 */
+	static const unsigned int TRANS_COUNT = 7;
+	static const unsigned int TRANS[TRANS_COUNT];
+	static const std::set<unsigned int> TRANSPARENT;
+
+	/*
+	 * Emitter block types
+	 */
+	static const unsigned int EMIT_COUNT = 8;
+	static const unsigned int EMIT[EMIT_COUNT];
+	static const std::set<unsigned int> EMITTER;
+
+	/*
+	 * Fill color
+	 */
+	static const unsigned int FILL = 0x000000ff;
 
 	/*
 	 * Maximum block
@@ -38,12 +59,17 @@ public:
 	/*
 	 * Block colors
 	 */
-	static const unsigned int COLOR[];
+	static const unsigned int COLOR[MAX_BLOCK + 1];
 
 	/*
-	 * Returns true if a given id is transparent
+	 * Returns true if a given block id is an emitter
 	 */
-	static bool is_transparent(unsigned int id);
+	static bool is_emitter(unsigned int id) { return EMITTER.find(id) != EMITTER.end(); }
+
+	/*
+	 * Returns true if a given block id is transparent
+	 */
+	static bool is_transparent(unsigned int id) { return TRANSPARENT.find(id) != TRANSPARENT.end(); }
 };
 
 #endif

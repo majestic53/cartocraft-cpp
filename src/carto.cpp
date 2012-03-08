@@ -21,9 +21,10 @@
 #include <cstdint>
 #include <iostream>
 #include "block_color.hpp"
+#include "biome_color.hpp"
 #include "carto.hpp"
-#include "../lib/headers/region_dim.hpp"
-#include "../lib/headers/region_file.hpp"
+#include "region_dim.hpp"
+#include "region_file.hpp"
 
 /*
  * Cartocraft info
@@ -36,7 +37,7 @@ const std::string carto::WARRANTY("This is free software. There is NO warranty."
 /*
  * Cartocraft render constants
  */
-const int carto::RADII[RADII_COUNT] = { 1, 1, 1, 1, 1, 2, 4, 8, 16 };
+const int carto::SAMPLE_RADII[SAMPLE_RADII_COUNT] = { 1, 1, 1, 1, 1, 2, 4, 8, 16 };
 
 /*
  * Cartocraft defaults
@@ -68,33 +69,33 @@ carto::~carto(void) {
 }
 
 /*
- * Apply occlusion to a given pixel at x, z coord
+ * Scale a color at a given pixel at x, z coord
  */
 bool carto::apply_scale(unsigned int px_x, unsigned int px_z, float amount) {
 	unsigned int col;
 	unsigned char n_col[image_buffer::CHANNELS];
-	if(amount == 0)
+	if(!amount)
 		return true;
-	col = img.at(px_x, px_z);
+	col = terrain.at(px_x, px_z);
 
 	// iterate through all color channels
 	for(unsigned int i = 0; i < image_buffer::CHANNELS; ++i) {
 		n_col[i] = (unsigned char) (col >> (24 - (i * 8)));
 
-		// do not apply occlusion to alpha channel
+		// do not apply scaling to alpha channel
 		if(i != image_buffer::ALPHA)
 			n_col[i] *= amount;
 	}
 
 	// apply the new color
-	return img.set(px_x, px_z, ((n_col[0] << 24) | (n_col[1] << 16) | (n_col[2] << 8) | n_col[3]));
+	return terrain.set(px_x, px_z, ((n_col[0] << 24) | (n_col[1] << 16) | (n_col[2] << 8) | n_col[3]));
 }
 
 /*
  * Returns true if a region in the image buffer is filled
  */
 bool carto::is_filled(unsigned int x, unsigned int z) {
-	unsigned int pos = z * (img.get_width() / BLOCK_WIDTH_PER_REGION) + x;
+	unsigned int pos = z * (terrain.get_width() / BLOCK_WIDTH_PER_REGION) + x;
 
 	// check if position is valid
 	if(pos >= region_count)
@@ -164,29 +165,29 @@ int carto::render_map(const std::string &reg_dir, unsigned int ren_height, bool 
 		return FILES_NOT_FOUND;
 
 	// calculate image size, allocate pixel buffer & filled buffer
-	img = image_buffer(BLOCK_WIDTH_PER_REGION * (abs(x_min) + x_max) + BLOCK_WIDTH_PER_REGION,
+	terrain = image_buffer(BLOCK_WIDTH_PER_REGION * (abs(x_min) + x_max) + BLOCK_WIDTH_PER_REGION,
 				BLOCK_WIDTH_PER_REGION * (abs(z_min) + z_max) + BLOCK_WIDTH_PER_REGION);
-	img.fill(block_color::BLACK);
-	std::cout << "Rendering map: size: (" << img.get_width() << ", " << img.get_height() << ")..." << std::endl;
+	terrain.fill(block_color::FILL);
+	std::cout << "Rendering map: size: (" << terrain.get_width() << ", " << terrain.get_height() << ")..." << std::endl;
 
 	// set offset and regions filled
 	offset_x = abs(x_min);
 	offset_z = abs(z_min);
-	region_count = (img.get_width() / BLOCK_WIDTH_PER_REGION) * (img.get_height() / BLOCK_WIDTH_PER_REGION);
+	region_count = (terrain.get_width() / BLOCK_WIDTH_PER_REGION) * (terrain.get_height() / BLOCK_WIDTH_PER_REGION);
 	region_filled = new bool[region_count];
-	heightmap = new unsigned int[img.get_width() * img.get_height()];
+	heightmap = new unsigned int[terrain.get_width() * terrain.get_height()];
 	if(!region_filled
 			|| !heightmap)
 		return ALLOC_FAILED;
 	memset(region_filled, false, region_count);
-	memset(heightmap, 0, img.get_width() * img.get_height());
+	memset(heightmap, 0, terrain.get_width() * terrain.get_height());
 
 	// render image (by region)
 	for(reg_file = reg_files.begin(); reg_file != reg_files.end(); ++reg_file)
 		if((res = render_region(*reg_file, ren_height)) != SUCCESS)
 			return res;
 
-	// render occlusion (by region)
+	// render occlusion & illumination (by region)
 	if(ren_occlusion)
 		for(int z = 0; z < (abs(z_min) + z_max) + 1; ++z)
 			for(int x = 0; x < (abs(x_min) + x_max) + 1; ++x)
@@ -200,7 +201,9 @@ int carto::render_map(const std::string &reg_dir, unsigned int ren_height, bool 
  * Render a region file
  */
 int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
+	float scale;
 	region_file_reader reader;
+	std::vector<int8_t> biomes;
 	std::vector<int32_t> blocks, heights;
 	unsigned int block_height, block_id, pos;
 	int reg_x, reg_z, ch_x, ch_z, b_x, b_z;
@@ -216,7 +219,7 @@ int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
 
 		// set filled region to true
 		if(!is_filled(reg_x / BLOCK_WIDTH_PER_REGION, reg_z / BLOCK_WIDTH_PER_REGION))
-			region_filled[((reg_z / BLOCK_WIDTH_PER_REGION) * (img.get_width() / BLOCK_WIDTH_PER_REGION) + (reg_x / BLOCK_WIDTH_PER_REGION))] = true;
+			region_filled[((reg_z / BLOCK_WIDTH_PER_REGION) * (terrain.get_width() / BLOCK_WIDTH_PER_REGION) + (reg_x / BLOCK_WIDTH_PER_REGION))] = true;
 
 		// render region chunk-by-chunk
 		for(unsigned int chunk_z = 0; chunk_z < region_dim::REGION_Z; ++chunk_z)
@@ -226,12 +229,14 @@ int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
 				if(!reader.is_filled(chunk_x, chunk_z))
 					continue;
 
-				// collect chunk heightmap data
+				// collect chunk biome, block & heightmap data
+				biomes = reader.get_biomes_at(chunk_x, chunk_z);
 				blocks = reader.get_blocks_at(chunk_x, chunk_z);
 				heights = reader.get_heightmap_at(chunk_x, chunk_z);
 
 				// skip over empty chunks
-				if(blocks.empty()
+				if(biomes.empty()
+						|| blocks.empty()
 						|| heights.empty()) {
 					std::cerr << "Warning: Chunk missing data at (" << chunk_x << ", " << chunk_z << "). Skipping." << std::endl;
 					continue;
@@ -248,9 +253,11 @@ int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
 						if((unsigned int) block_height > ren_height)
 							block_height = ren_height;
 						pos = (block_height * region_dim::SECTION_Y + block_z) * region_dim::SECTION_Z + block_x;
-						if(pos >= blocks.size())
-							block_id = blocks.at(pos - region_dim::CHUNK_Y);
-						else {
+						if(pos >= blocks.size()) {
+							while(pos >= blocks.size())
+								pos -= region_dim::CHUNK_Y;
+							block_id = blocks.at(pos);
+						} else {
 							block_id = blocks.at(pos);
 
 							// find the first block that is not an air block
@@ -276,11 +283,16 @@ int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
 						b_x = ch_x + block_x;
 						b_z = ch_z + block_z;
 
-						// Use block_id to set image buffer color at a x, z coord
-						img.set(b_x, b_z, block_color::COLOR[block_id]);
+						// add height to global heightmap (used by SSOA later)
+						heightmap[(b_z * terrain.get_width()) + b_x] = block_height;
 
-						// add height to global heightmap (used by ssoa later)
-						heightmap[(b_z * img.get_width()) + b_x] = block_height;
+						// use block_id to set terrain buffer color at an x, z coord
+						terrain.set(b_x, b_z, block_color::COLOR[block_id]);
+
+						// scale colors based off biome type
+						scale = biome_color::COLOR_SCALE[biomes.at((block_z * region_dim::CHUNK_Z) + block_x)];
+						if(scale)
+							apply_scale(b_x, b_z, scale);
 					}
 			}
 
@@ -302,29 +314,29 @@ void carto::render_region_occlusion(unsigned int off_x, unsigned int off_z) {
 	std::cout << "Rendering occlusion: (" << off_x << ", " << off_z << ")..." << std::endl;
 
 	// iterate through each block and calculate occlusion value
-	for(int z = 0; z < (int) BLOCK_WIDTH_PER_REGION; ++z)
-		for(int x = 0; x < (int) BLOCK_WIDTH_PER_REGION; ++x) {
+	for(unsigned int z = 0; z < BLOCK_WIDTH_PER_REGION; ++z)
+		for(unsigned int x = 0; x < BLOCK_WIDTH_PER_REGION; ++x) {
 
 			// skip all blocks of height zero
-			if(!heightmap[((off_z + z) * img.get_width()) + (off_x + x)])
+			if(!heightmap[((off_z + z) * terrain.get_width()) + (off_x + x)])
 				continue;
 
 			// iterate through the various sampling radii
-			for(unsigned int r = 0; r < RADII_COUNT; ++r) {
+			for(unsigned int r = 0; r < SAMPLE_RADII_COUNT; ++r) {
 				average = 0;
 				samples = 0;
 
 				// iterate through surrounding block heights
-				for(int i = -RADII[r]; i <= RADII[r]; ++i)
-					for(int j = -RADII[r]; j <= RADII[r]; ++j) {
+				for(int i = -SAMPLE_RADII[r]; i <= SAMPLE_RADII[r]; ++i)
+					for(int j = -SAMPLE_RADII[r]; j <= SAMPLE_RADII[r]; ++j) {
 						br_x = off_x + x + i;
 						br_z = off_z + z + j;
 						if((!i && !j)
-								|| br_x < 0 || (unsigned int) br_x >= img.get_width()
-								|| br_z < 0 || (unsigned int) br_z >= img.get_height()
-								|| (heightmap[(br_z * img.get_width()) + br_x] - heightmap[((off_z + z) * img.get_width()) + (off_x + x)] < 0))
+								|| br_x < 0 || (unsigned int) br_x >= terrain.get_width()
+								|| br_z < 0 || (unsigned int) br_z >= terrain.get_height()
+								|| (heightmap[(br_z * terrain.get_width()) + br_x] - heightmap[((off_z + z) * terrain.get_width()) + (off_x + x)] < 0))
 							continue;
-						average += heightmap[(br_z * img.get_width()) + br_x];
+						average += heightmap[(br_z * terrain.get_width()) + br_x];
 						samples++;
 					}
 
@@ -332,12 +344,12 @@ void carto::render_region_occlusion(unsigned int off_x, unsigned int off_z) {
 				if(!samples)
 					samples = 1;
 				average /= samples;
-				value = heightmap[((off_z + z) * img.get_width()) + (off_x + x)] - average;
+				value = heightmap[((off_z + z) * terrain.get_width()) + (off_x + x)] - average;
 				if(value >= 0)
 					continue;
 
 				// apply occlusion value to block
-				value = fabs(((region_dim::CHUNK_Y - 1) + value) / (float) (region_dim::CHUNK_Y - 1));
+				value = fabs(((region_dim::CHUNK_Y - 1) + 2 * value) / (float) (region_dim::CHUNK_Y - 1));
 				apply_scale(off_x + x, off_z + z, value);
 			}
 		}

@@ -20,10 +20,22 @@
 #include "block_color.hpp"
 
 /*
+ * Transparent block types
+ */
+const unsigned int block_color::TRANS[TRANS_COUNT] = { AIR, WATER_1, WATER_2, LAVA_1, LAVA_2, GLASS, ICE, };
+const std::set<unsigned int> block_color::TRANSPARENT(TRANS, TRANS + TRANS_COUNT);
+
+/*
+ * Emitter block types
+ */
+const unsigned int block_color::EMIT[EMIT_COUNT] = { LAVA_1, LAVA_2, TORCH, FIRE, RED_STONE_TORCH, GLOW_STONE, JACK_O_LANTERN, RED_STONE_LAMP, };
+const std::set<unsigned int> block_color::EMITTER(EMIT, EMIT + EMIT_COUNT);
+
+/*
  * Block colors
  */
-const unsigned int block_color::COLOR[block_color::MAX_BLOCK + 1] = {
-	0x0, 		0x747474ff, 0x58864cff, 0xb9855cff, 0xa9a9a9ff, 0xbc9862ff, 0x49cc25ff, 0x575757ff,
+const unsigned int block_color::COLOR[MAX_BLOCK + 1] = {
+	0x00000000, 0x747474ff, 0x58864cff, 0xb9855cff, 0xa9a9a9ff, 0xbc9862ff, 0x49cc25ff, 0x575757ff,
 	0x77a9ffff, 0x77a9ffff, 0xc63004ff, 0xd5570eff, 0xe2dba3ff, 0x9b9092ff, 0xfcee4bff, 0xd8af93ff,
 	0x3f3f3fff, 0x624e30ff, 0x399013ff, 0xc1c139ff, 0xc0f5feff, 0x1b4aa1ff, 0x2a4f8cff, 0x797979ff,
 	0xcdc592ff, 0x915840ff, 0xa92b2fff, 0xa92b2fff, 0xa92b2fff, 0x6c6439ff, 0xedededff, 0x265e0dff,
@@ -40,18 +52,3 @@ const unsigned int block_color::COLOR[block_color::MAX_BLOCK + 1] = {
 	0x3e1e24ff, 0x3e1e24ff, 0x3e1e24ff, 0x93283cff, 0x93283cff, 0x4d4d4dff, 0x4f4f4fff, 0x909090ff,
 	0x3a675fff, 0xebf8b6ff, 0x1d0120ff, 0xa47c51ff, 0xd39b48ff,
 };
-
-/*
- * Returns true if a given id is transparent
- */
-bool block_color::is_transparent(unsigned int id) {
-	return (id == AIR
-			|| id == WATER_1
-			|| id == WATER_2
-			|| id == LAVA_1
-			|| id == LAVA_2
-			|| id == GLASS
-			|| id == ICE);
-}
-
-// TODO: SWITCH ICE AND WATER COLORS && CHANGE ICE TO A MORE WHITE COLOR
