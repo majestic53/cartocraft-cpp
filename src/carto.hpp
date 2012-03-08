@@ -45,6 +45,11 @@ private:
 	unsigned int offset_x, offset_z, region_count, *heightmap;
 
 	/*
+	 * Blend a foreground color with a given pixel at x, z coord
+	 */
+	bool apply_alpha_blend(unsigned int px_x, unsigned int px_z, unsigned int fore);
+
+	/*
 	 * Scale a color at a given pixel at x, z coord
 	 */
 	bool apply_scale(unsigned int px_x, unsigned int px_z, float amount);

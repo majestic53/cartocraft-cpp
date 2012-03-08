@@ -38,7 +38,7 @@ public:
 	/*
 	 * Biome color scales
 	 */
-	static const float COLOR_SCALE[MAX_BIOME + 1];
+	static const unsigned int BLEND_COLOR[MAX_BIOME + 1];
 };
 
 #endif

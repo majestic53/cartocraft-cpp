@@ -69,6 +69,26 @@ carto::~carto(void) {
 }
 
 /*
+ * Blend a foreground color with a given pixel at x, z coord
+ */
+bool carto::apply_alpha_blend(unsigned int px_x, unsigned int px_z, unsigned int fore) {
+	unsigned int back;
+	unsigned char c_back, c_fore, alpha = (unsigned char) fore;
+	unsigned n_back[image_buffer::CHANNELS - 1];
+	back = terrain.at(px_x, px_z);
+
+	// iterate through all color channels
+	for(unsigned int i = 0; i < image_buffer::CHANNELS - 1; ++i) {
+		c_back = (unsigned char) (back >> (24 - (i * 8)));
+		c_fore = (unsigned char) (fore >> (24 - (i * 8)));
+		n_back[i] = c_fore * ((float) alpha / 0xff) + c_back * ((float) (0xff - alpha) / 0xff);
+	}
+
+	// apply alpha-blended color
+	return terrain.set(px_x, px_z, ((n_back[0] << 24) | (n_back[1] << 16) | (n_back[2] << 8) | 0xff));
+}
+
+/*
  * Scale a color at a given pixel at x, z coord
  */
 bool carto::apply_scale(unsigned int px_x, unsigned int px_z, float amount) {
@@ -201,11 +221,10 @@ int carto::render_map(const std::string &reg_dir, unsigned int ren_height, bool 
  * Render a region file
  */
 int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
-	float scale;
 	region_file_reader reader;
 	std::vector<int8_t> biomes;
 	std::vector<int32_t> blocks, heights;
-	unsigned int block_height, block_id, pos;
+	unsigned int block_height, block_id, blend_color, pos;
 	int reg_x, reg_z, ch_x, ch_z, b_x, b_z;
 
 	// open region file and collect data
@@ -290,9 +309,9 @@ int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
 						terrain.set(b_x, b_z, block_color::COLOR[block_id]);
 
 						// scale colors based off biome type
-						scale = biome_color::COLOR_SCALE[biomes.at((block_z * region_dim::CHUNK_Z) + block_x)];
-						if(scale)
-							apply_scale(b_x, b_z, scale);
+						blend_color = biome_color::BLEND_COLOR[biomes.at((block_z * region_dim::CHUNK_Z) + block_x)];
+						if(blend_color)
+							apply_alpha_blend(b_x, b_z, blend_color);
 					}
 			}
 

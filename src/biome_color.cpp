@@ -10,7 +10,7 @@
 /*
  * Biome color scales
  */
-const float biome_color::COLOR_SCALE[MAX_BIOME + 1] = {
-	0.9, 0, 0, 0, 0, 0, 0.85, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+const unsigned int biome_color::BLEND_COLOR[MAX_BIOME + 1] = {
+	0x00000026, 0xffff0011, 0, 0x66666622, 0x33660022, 0, 0x00000033, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0x33660022, 0, 0, 0x99FF6611, 0x99FF6611,
 };
