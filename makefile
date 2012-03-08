@@ -11,15 +11,18 @@ FLAGS=-std=c++0x -lboost_regex -lboost_filesystem -lz -I $(HEADERS) -L $(LIB) -l
 
 all: build carto
 
-build: block_color.o image_buffer.o lodepng.o
+build: biome_color.o block_color.o image_buffer.o lodepng.o
 
 carto: build $(SRC)carto.cpp $(SRC)carto.hpp
-	$(CC) -o $(OUT) $(SRC)carto.cpp $(SRC)block_color.o $(SRC)image_buffer.o $(LODE)lodepng.o $(FLAGS)
+	$(CC) -o $(OUT) $(SRC)carto.cpp $(SRC)biome_color.o $(SRC)block_color.o $(SRC)image_buffer.o $(LODE)lodepng.o $(FLAGS)
 
 clean:
 	rm -f $(OUT)
 	rm -f $(SRC)*.o
 	rm -f $(LODE)*.o
+
+biome_color.o: $(SRC)biome_color.cpp $(SRC)biome_color.hpp
+	$(CC) -std=c++0x -O3 -funroll-all-loops -c $(SRC)biome_color.cpp -o $(SRC)biome_color.o
 
 block_color.o: $(SRC)block_color.cpp $(SRC)block_color.hpp
 	$(CC) -std=c++0x -O3 -funroll-all-loops -c $(SRC)block_color.cpp -o $(SRC)block_color.o
