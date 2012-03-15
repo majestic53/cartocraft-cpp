@@ -23,8 +23,8 @@
 #include <string>
 #include <vector>
 #include "image_buffer.hpp"
-#include "../lib/headers/region_file_exc.hpp"
-#include "../lib/headers/region_file_reader.hpp"
+#include "../lib/libanvil/src/region_file_exc.hpp"
+#include "../lib/libanvil/src/region_file_reader.hpp"
 
 class carto {
 private:

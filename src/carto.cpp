@@ -23,8 +23,8 @@
 #include "block_color.hpp"
 #include "biome_color.hpp"
 #include "carto.hpp"
-#include "../lib/headers/region_dim.hpp"
-#include "../lib/headers/region_file.hpp"
+#include "../lib/libanvil/src/region_dim.hpp"
+#include "../lib/libanvil/src/region_file.hpp"
 
 /*
  * Cartocraft info
