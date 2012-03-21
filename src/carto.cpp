@@ -18,20 +18,20 @@
  */
 
 #include <boost/filesystem.hpp>
-#include <cstdint>
 #include <iostream>
+#include <stdexcept>
 #include "block_color.hpp"
 #include "biome_color.hpp"
 #include "carto.hpp"
-#include "../lib/libanvil/src/region_dim.hpp"
-#include "../lib/libanvil/src/region_file.hpp"
+#include "region_dim.hpp"
+#include "region_file.hpp"
 
 /*
  * Cartocraft info
  */
 const std::string carto::COPYRIGHT("Copyright (C) 2012 David Jolly");
 const std::string carto::USE("carto [-v | -h] [-p REGION_FILE_DIR] [-r RENDER_HEIGHT] [-o OUTPUT_PATH]");
-const std::string carto::VER_NUM("Cartocraft 0.1.1");
+const std::string carto::VER_NUM("Cartocraft 0.2.0");
 const std::string carto::WARRANTY("This is free software. There is NO warranty.");
 
 /*
@@ -213,7 +213,6 @@ int carto::render_map(const std::string &reg_dir, unsigned int ren_height, bool 
 			for(int x = 0; x < (abs(x_min) + x_max) + 1; ++x)
 				if(is_filled(x, z))
 					render_region_occlusion(x * BLOCK_WIDTH_PER_REGION, z * BLOCK_WIDTH_PER_REGION);
-
 	return SUCCESS;
 }
 
@@ -223,15 +222,16 @@ int carto::render_map(const std::string &reg_dir, unsigned int ren_height, bool 
 int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
 	bool below_ground;
 	region_file_reader reader;
-	std::vector<int8_t> biomes;
-	std::vector<int32_t> blocks, heights;
+	std::vector<char> biomes;
+	std::vector<int> blocks, heights;
 	unsigned int block_height, block_id, blend_color, pos;
 	int reg_x, reg_z, ch_x, ch_z, b_x, b_z;
 
 	// open region file and collect data
 	try {
 		reader = region_file_reader(reg_file);
-		std::cout << "Processing region: " << reader.to_string() << "..." << std::endl;
+		reader.read();
+		std::cout << "Processing region: " << reader.get_region().get_header().to_string() << "..." << std::endl;
 
 		// calculate region offsets
 		reg_x = ((abs(reader.get_x_coord() + offset_x)) * BLOCK_WIDTH_PER_REGION);
@@ -242,8 +242,8 @@ int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
 			region_filled[((reg_z / BLOCK_WIDTH_PER_REGION) * (terrain.get_width() / BLOCK_WIDTH_PER_REGION) + (reg_x / BLOCK_WIDTH_PER_REGION))] = true;
 
 		// render region chunk-by-chunk
-		for(unsigned int chunk_z = 0; chunk_z < region_dim::REGION_Z; ++chunk_z)
-			for(unsigned int chunk_x = 0; chunk_x < region_dim::REGION_X; ++chunk_x) {
+		for(unsigned int chunk_z = 0; chunk_z < region_dim::CHUNK_WIDTH; ++chunk_z)
+			for(unsigned int chunk_x = 0; chunk_x < region_dim::CHUNK_WIDTH; ++chunk_x) {
 
 				// check if chunk exists
 				if(!reader.is_filled(chunk_x, chunk_z))
@@ -263,35 +263,35 @@ int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
 				}
 
 				// calculate chunk offsets
-				ch_x = reg_x + (chunk_x * region_dim::CHUNK_X);
-				ch_z = reg_z + (chunk_z * region_dim::CHUNK_Z);
+				ch_x = reg_x + (chunk_x * region_dim::BLOCK_WIDTH);
+				ch_z = reg_z + (chunk_z * region_dim::BLOCK_WIDTH);
 
 				// process each chunk block-by-block
-				for(unsigned int block_z = 0; block_z < region_dim::CHUNK_Z; ++block_z)
-					for(unsigned int block_x = 0; block_x < region_dim::CHUNK_X; ++block_x) {
-						block_height = heights.at(block_z * region_dim::CHUNK_Z + block_x);
+				for(unsigned int block_z = 0; block_z < region_dim::BLOCK_WIDTH; ++block_z)
+					for(unsigned int block_x = 0; block_x < region_dim::BLOCK_WIDTH; ++block_x) {
+						block_height = heights.at(block_z * region_dim::BLOCK_WIDTH + block_x);
 						if((unsigned int) block_height > ren_height) {
 							block_height = ren_height;
 							below_ground = true;
 						} else
 							below_ground = false;
-						pos = (block_height * region_dim::SECTION_Y + block_z) * region_dim::SECTION_Z + block_x;
+						pos = (block_height * region_dim::BLOCK_WIDTH + block_z) * region_dim::BLOCK_WIDTH + block_x;
 						if(pos >= blocks.size()) {
 							while(pos >= blocks.size())
-								pos -= region_dim::CHUNK_Y;
+								pos -= region_dim::BLOCK_HEIGHT;
 							block_id = blocks.at(pos);
 						} else {
 							block_id = blocks.at(pos);
 
 							// find the first block that is not an air block
 							while(!block_id) {
-								pos -= region_dim::CHUNK_Y;
+								pos -= region_dim::BLOCK_HEIGHT;
 								block_id = blocks.at(pos);
 							}
 
 							// decrease block height until reaching a non-transparent material
 							while(block_color::is_transparent(blocks.at(pos))) {
-								pos -= region_dim::CHUNK_Y;
+								pos -= region_dim::BLOCK_HEIGHT;
 								--block_height;
 							}
 						}
@@ -313,7 +313,7 @@ int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
 						terrain.set(b_x, b_z, block_color::COLOR[block_id]);
 
 						// scale colors based off biome type
-						blend_color = biome_color::BLEND_COLOR[biomes.at((block_z * region_dim::CHUNK_Z) + block_x)];
+						blend_color = biome_color::BLEND_COLOR[(int) biomes.at((block_z * region_dim::BLOCK_WIDTH) + block_x)];
 						if(blend_color
 								&& !below_ground)
 							apply_alpha_blend(b_x, b_z, blend_color);
@@ -321,8 +321,8 @@ int carto::render_region(const std::string &reg_file, unsigned int ren_height) {
 			}
 
 	// catch all reader exceptions
-	} catch(region_file_exc &exc) {
-		std::cerr << exc.to_string() << std::endl;
+	} catch(std::exception &exc) {
+		std::cerr << "Exception: " << exc.what() << std::endl;
 		return REGION_FILE_DIR;
 	}
 	return SUCCESS;
@@ -373,7 +373,7 @@ void carto::render_region_occlusion(unsigned int off_x, unsigned int off_z) {
 					continue;
 
 				// apply occlusion value to block
-				value = fabs(((region_dim::CHUNK_Y - 1) + 2 * value) / (float) (region_dim::CHUNK_Y - 1));
+				value = fabs(((region_dim::BLOCK_HEIGHT - 1) + 4 * value) / (float) (region_dim::BLOCK_HEIGHT - 1));
 				apply_scale(off_x + x, off_z + z, value);
 			}
 		}
@@ -448,9 +448,8 @@ int main(int argc, char *argv[]) {
 	if((res = map.render_map(reg_dir, height, true)))
 		return res;
 
-	std::cout << "Writing to file: " << out << "..." << std::endl;
-
 	// write rendered map to file
+	std::cout << "Writing to file: " << out << "..." << std::endl;
 	map.write(out);
 
 	std::cout << "DONE." << std::endl;
