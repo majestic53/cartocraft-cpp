@@ -20,7 +20,6 @@
 #ifndef REGION_FILE_HPP_
 #define REGION_FILE_HPP_
 
-#include <algorithm>
 #include <boost/regex.hpp>
 #include <string>
 #include "region.hpp"
@@ -100,6 +99,16 @@ public:
 	 * Convert between endian types
 	 */
 	static void convert_endian(std::vector<char> &data);
+
+	/*
+	 * Generate a new region file
+	 */
+	void generate(int x, int z) { region::generate(x, z, reg); }
+
+	/*
+	 * Generate a ne chunk in a region
+	 */
+	void generate_chunk(unsigned int x, unsigned int z) { region::generate_chunk(x, z, reg); };
 
 	/*
 	 * Returns a region file's path

@@ -1,8 +1,20 @@
 /*
  * compression.cpp
+ * Copyright (C) 2012 David Jolly
+ * ----------------------
  *
- *  Created on: Mar 18, 2012
- *      Author: david
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <cstring>
@@ -27,12 +39,12 @@ bool compression::deflate_(std::vector<char> &data) {
 
 	// deflate blocks
 	do {
-        zs.next_out = reinterpret_cast<Bytef *>(buff);
-        zs.avail_out = SEG_SIZE;
+		zs.next_out = reinterpret_cast<Bytef *>(buff);
+		zs.avail_out = SEG_SIZE;
 
-        // deflate data and place in out_data
-        ret = deflate(&zs, Z_FINISH);
-        out_data.insert(out_data.end(), buff, buff + zs.total_out);
+		// deflate data and place in out_data
+		ret = deflate(&zs, Z_FINISH);
+		out_data.insert(out_data.end(), buff, buff + zs.total_out);
 	} while(ret == Z_OK);
 
 	// check for errors
@@ -65,13 +77,13 @@ bool compression::inflate_(std::vector<char> &data) {
 
 	// inflate blocks
 	do {
-        zs.next_out = reinterpret_cast<Bytef *>(buff);
-        zs.avail_out = SEG_SIZE;
+		zs.next_out = reinterpret_cast<Bytef *>(buff);
+		zs.avail_out = SEG_SIZE;
 
-        // inflate data and place in out_data
-        ret = inflate(&zs, 0);
-        out_data.insert(out_data.end(), buff, buff + (zs.total_out - prev_out));
-        prev_out = zs.total_out;
+		// inflate data and place in out_data
+		ret = inflate(&zs, 0);
+		out_data.insert(out_data.end(), buff, buff + (zs.total_out - prev_out));
+		prev_out = zs.total_out;
 	} while(ret == Z_OK);
 
 	// check for errors

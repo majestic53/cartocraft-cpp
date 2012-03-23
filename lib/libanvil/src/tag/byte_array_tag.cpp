@@ -18,6 +18,7 @@
  */
 
 #include <sstream>
+#include "../byte_stream.hpp"
 #include "byte_array_tag.hpp"
 
 /*
@@ -64,28 +65,19 @@ bool byte_array_tag::operator==(const generic_tag &other) {
 /*
  * Return a byte array tag's data
  */
-std::vector<char> byte_array_tag::get_data(void)  {
-	short len;
-	unsigned int array_len;
-	const char *name, *name_len, *array_len_value;
-	std::vector<char> data;
+std::vector<char> byte_array_tag::get_data(bool list_ele)  {
+	byte_stream stream(byte_stream::SWAP_ENDIAN);
 
 	// form data representation
-	len = this->name.size();
-	name = this->name.data();
-	array_len = this->value.size();
-	name_len = reinterpret_cast<const char *>(&len);
-	array_len_value = reinterpret_cast<const char *>(&array_len);
-	data.insert(data.end(), sizeof(type), *reinterpret_cast<const char *>(&type));
-	for(unsigned int i = 0; i < sizeof(len); ++i)
-		data.insert(data.end(), name_len[i]);
-	for(unsigned short i = 0; i < len; ++i)
-		data.insert(data.end(), name[i]);
-	for(unsigned int i = 0; i < sizeof(array_len); ++i)
-		data.insert(data.end(), array_len_value[i]);
-	for(unsigned int i = 0; i < array_len; ++i)
-		data.insert(data.end(), value[i]);
-	return data;
+	if(!list_ele) {
+		stream << (char) type;
+		stream << (short) name.size();
+		stream << name;
+	}
+	stream << (int) value.size();
+	for(unsigned int i = 0; i < value.size(); ++i)
+		stream << value.at(i);
+	return stream.vbuf();
 }
 
 /*
@@ -95,12 +87,10 @@ std::string byte_array_tag::to_string(unsigned int tab) {
 	std::stringstream ss;
 
 	// form string representation
-	ss << generic_tag::to_string(tab);
-	if(!value.empty()) {
-		ss << " (" << value.size() << ") { ";
+	ss << generic_tag::to_string(tab) << " (" << value.size() << ") { ";
+	if(!value.empty())
 		for(unsigned int i = 0; i < value.size(); ++i)
 			ss << (int) value.at(i) << ", ";
-		ss << "}";
-	}
+	ss << "}";
 	return ss.str();
 }

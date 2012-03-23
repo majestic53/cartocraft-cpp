@@ -18,6 +18,7 @@
  */
 
 #include <sstream>
+#include "../byte_stream.hpp"
 #include "list_tag.hpp"
 
 /*
@@ -64,31 +65,20 @@ bool list_tag::operator==(const generic_tag &other) {
 /*
  * Return a list tag's data
  */
-std::vector<char> list_tag::get_data(void)  {
-	short len;
-	unsigned int array_len;
-	const char *name, *name_len, *array_len_value;
-	std::vector<char> data, sub_data;
+std::vector<char> list_tag::get_data(bool list_ele)  {
+	byte_stream stream(byte_stream::SWAP_ENDIAN);
 
 	// form data representation
-	len = this->name.size();
-	name = this->name.data();
-	array_len = this->value.size();
-	name_len = reinterpret_cast<const char *>(&len);
-	array_len_value = reinterpret_cast<const char *>(&array_len);
-	data.insert(data.end(), sizeof(type), *reinterpret_cast<const char *>(&type));
-	for(unsigned int i = 0; i < sizeof(len); ++i)
-		data.insert(data.end(), name_len[i]);
-	for(unsigned short i = 0; i < len; ++i)
-		data.insert(data.end(), name[i]);
-	data.insert(data.end(), sizeof(ele_type), *reinterpret_cast<const char *>(&ele_type));
-	for(unsigned int i = 0; i < sizeof(array_len); ++i)
-		data.insert(data.end(), array_len_value[i]);
-	for(unsigned int i = 0; i < array_len; ++i) {
-		sub_data = value.at(i)->get_data();
-		data.insert(data.end(), sub_data.begin(), sub_data.end());
+	if(!list_ele) {
+		stream << (char) type;
+		stream << (short) name.size();
+		stream << name;
 	}
-	return data;
+	stream << (char) ele_type;
+	stream << (int) value.size();
+	for(unsigned int i = 0; i < value.size(); ++i)
+		stream << value.at(i)->get_data(true);
+	return stream.vbuf();
 }
 
 /*
@@ -122,13 +112,13 @@ std::string list_tag::to_string(unsigned int tab) {
 	std::stringstream ss;
 
 	// form string representation
-	ss << generic_tag::to_string(tab);
+	ss << generic_tag::to_string(tab) << " (" << value.size() << ") {";
 	if(!value.empty()) {
-		ss << " (" << value.size() << ") {" << std::endl;
+		ss << std::endl;
 		for(unsigned int i = 0; i < value.size(); ++i)
 			ss << value.at(i)->to_string(tab + 1) << std::endl;
 		generic_tag::append_tabs(tab, ss);
-		ss << "}";
 	}
+	ss << "}";
 	return ss.str();
 }
